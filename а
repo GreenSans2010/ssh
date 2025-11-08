@@ -1,1 +1,162 @@
 git clone --filter=blob:none https://github.com/folke/lazy.nvim.git --branch=stable ~/.local/share/nvim/lazy/lazy.nvim
+
+
+Чтобы подключиться к SSH серверу не через Wi-Fi, есть несколько вариантов:
+
+## 1. **Подключение через Ethernet (проводная сеть)**
+
+### Настройка статического IP (рекомендуется):
+```bash
+sudo nano /etc/network/interfaces
+```
+
+Добавьте:
+```
+auto eth0
+iface eth0 inet static
+    address 192.168.1.100
+    netmask 255.255.255.0
+    gateway 192.168.1.1
+    dns-nameservers 8.8.8.8 1.1.1.1
+```
+
+Или используйте `netplan` в новых версиях Debian:
+```bash
+sudo nano /etc/netplan/01-netcfg.yaml
+```
+
+```yaml
+network:
+  version: 2
+  ethernet:
+    eth0:
+      dhcp4: no
+      addresses: [192.168.1.100/24]
+      gateway4: 192.168.1.1
+      nameservers:
+        addresses: [8.8.8.8, 1.1.1.1]
+```
+
+Применить настройки:
+```bash
+sudo netplan apply
+```
+
+## 2. **Прямое соединение Ethernet кабелем**
+
+### Вариант A: С использованием коммутатора/роутера
+- Подключите оба устройства к одному роутеру/свитчу
+- Узнайте IP адрес сервера: `ip addr show` или `ifconfig`
+
+### Вариант B: Прямое соединение компьютер-компьютер
+Используйте **перекрестный Ethernet кабель** или современные сетевые карты с Auto-MDI-X.
+
+На сервере (Debian):
+```bash
+sudo nano /etc/network/interfaces
+```
+
+```
+auto eth0
+iface eth0 inet static
+    address 192.168.10.1
+    netmask 255.255.255.0
+```
+
+На клиенте настройте IP из той же подсети (например, `192.168.10.2`)
+
+## 3. **Подключение через мобильный интернет (USB-тетеринг)**
+
+### На Android:
+1. Включите USB-тетеринг в настройках
+2. На Debian сервере:
+```bash
+# Проверьте появившийся интерфейс
+ip addr show
+# Обычно это usb0 или rndis0
+```
+
+### Настройка:
+```bash
+sudo dhclient usb0
+# или статический IP
+sudo ip addr add 192.168.42.10/24 dev usb0
+```
+
+## 4. **Настройка для внешнего доступа (через интернет)**
+
+### Требуется:
+- Публичный IP адрес или настройка проброса портов на роутере
+
+### Проброс портов на роутере:
+1. Зайдите в настройки роутера (обычно 192.168.1.1 или 192.168.0.1)
+2. Найдите раздел "Port Forwarding" или "Виртуальные серверы"
+3. Добавьте правило:
+   - Service: SSH
+   - External Port: 22 (или другой)
+   - Internal Port: 22
+   - Internal IP: [IP вашего Debian сервера]
+   - Protocol: TCP
+
+### Проверка внешнего IP:
+```bash
+curl ifconfig.me
+```
+
+## 5. **Использование сервисов для туннелирования**
+
+### Ngrok (если нет доступа к роутеру):
+```bash
+# Установите ngrok
+wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+tar xzf ngrok-v3-stable-linux-amd64.tgz
+
+# Запустите туннель для SSH
+./ngrok tcp 22
+```
+
+## 6. **Проверка подключения**
+
+### Узнать IP адреса сервера:
+```bash
+ip addr show
+# или
+ifconfig
+```
+
+### На клиенте попробуйте подключиться:
+```bash
+ssh username@ip_адрес_сервера
+```
+
+## 7. **Решение проблем**
+
+### Если подключение не работает:
+```bash
+# Проверить, слушает ли SSH порт
+sudo netstat -tlnp | grep :22
+
+# Проверить firewall
+sudo ufw status
+
+# Проверить доступность хоста
+ping ip_адрес_сервера
+```
+
+### Важные моменты безопасности для внешнего доступа:
+```bash
+sudo nano /etc/ssh/sshd_config
+```
+
+```
+# Сменить стандартный порт
+Port 2222
+
+# Запретить вход root
+PermitRootLogin no
+
+# Использовать ключи вместо паролей
+PasswordAuthentication no
+```
+
+Выберите подходящий вариант в зависимости от вашей сетевой инфраструктуры!
